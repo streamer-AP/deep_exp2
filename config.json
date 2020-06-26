@@ -1,8 +1,9 @@
 {
-    "epochs":10,
-    "train_batch":128,
-    "eval_batch":128,
+    "epochs":50,
+    "train_batch":32,
+    "eval_batch":16,
     "checkpoints":"checkpoints",
     "log_dir":"logdir/exp2",
+    "img_dir":"data/train",
     "lr":0.001
 }

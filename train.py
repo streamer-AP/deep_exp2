@@ -4,10 +4,11 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 import json
 import os
+from DataSet import DataSet
 from termcolor import cprint
 from tqdm import tqdm
-from torchvision.transforms import ToTensor,Compose
-from model import MnistNet
+from torchvision.models import resnet50
+
 def train(cfg,net,train_dl,eval_dl):
     Loss=torch.nn.CrossEntropyLoss()
     optim=torch.optim.Adam(net.parameters(),lr=cfg["lr"])
@@ -15,7 +16,6 @@ def train(cfg,net,train_dl,eval_dl):
 
     best_acc=0
     writer=SummaryWriter(log_dir=cfg["log_dir"])
-    writer.add_graph(net,next(iter(train_dl))[0].cuda())
     if not os.path.isdir(cfg["checkpoints"]):
         os.makedirs(cfg["checkpoints"])
     for epoch in range(cfg["epochs"]):
@@ -50,17 +50,16 @@ def train(cfg,net,train_dl,eval_dl):
             torch.save(net.state_dict(),os.path.join(cfg["checkpoints"],f"{epoch}_{best_acc:.5f}.pt"))
 
 if __name__ == "__main__":
-    data_dir="data"
     with open("config.json","r") as f:
         cfg=json.load(f)
-    transform=Compose([ToTensor()])
-    
-    train_ds=torchvision.datasets.MNIST(data_dir,train=True,download=True,transform=transform)
-    eval_ds=torchvision.datasets.MNIST(data_dir,train=False,download=True,transform=transform)
-    train_dl=DataLoader(train_ds,batch_size=cfg["train_batch"],drop_last=True,shuffle=True)
+    ds=DataSet(cfg["img_dir"])
+    train_ds,eval_ds=torch.utils.data.random_split(ds,[int(0.7*len(ds)),int(0.3*len(ds))])
+
+    train_dl=DataLoader(train_ds,batch_size=cfg["train_batch"],drop_last=True,shuffle=True,num_workers=8)
     eval_dl=DataLoader(eval_ds,batch_size=cfg["eval_batch"],drop_last=True,shuffle=False)
-    net=MnistNet()
+    net=resnet50(pretrained=False,num_classes=2,)
     net.cuda()
+    net=torch.nn.DataParallel(net,device_ids=[0,1])
     train(cfg,net,train_dl,eval_dl)
 
 
